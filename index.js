@@ -100,7 +100,7 @@ module.exports = {
   module.exports[method] = function() {
     var client = new Client();
     var promise = client[method].apply(client, arguments);
-    promise.done(function() {
+    promise.finally(function() {
       client.close();
     });
 
