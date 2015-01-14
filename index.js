@@ -1,13 +1,19 @@
 var Q = require('q');
 var natUpnp = require('nat-upnp');
-var client = natUpnp.createClient();
 
-function acquirePort(pub, priv, force) {
+function Client() {
+  if (!(this instanceof Client)) return new Client();
+
+  this.client = natUpnp.createClient();
+}
+
+Client.prototype.mapPort = function(pub, priv, hijack) {
+  var client = this.client;
   var prep;
-  if (force) 
-    prep = unmapPort(pub);
+  if (hijack) 
+    prep = this.unmapPort(pub);
   else {
-    prep = isMappingAvailable(pub, priv)
+    prep = this.isMappingAvailable(pub, priv)
       .then(function(available) {
         if (!available) throw new Error('This mapping conflicts with an existing mapping');
       });
@@ -22,7 +28,8 @@ function acquirePort(pub, priv, force) {
   }) 
 }
 
-function isMappingAvailable(pub, priv) {
+Client.prototype.isMappingAvailable = function(pub, priv) {
+  var client = this.client;
   var myIp;
   return Q.all([
     Q.ninvoke(client, 'findGateway'),
@@ -43,7 +50,8 @@ function isMappingAvailable(pub, priv) {
   });
 }
 
-function clearMappings(options) {
+Client.prototype.clearMappings = function(options) {
+  var client = this.client;
   options = options || { local: true };
   // var remoteHost;
   var ports = options.ports;
@@ -69,20 +77,33 @@ function clearMappings(options) {
     });
 }
 
-function unmapPort(pub) {
-  return clearMappings({
+Client.prototype.unmapPort = function(pub) {
+  return this.clearMappings({
     ports: [pub]
   })
 }
 
-function externalIp() {
-  return Q.ninvoke(client, 'externalIp');
+Client.prototype.externalIp = function() {
+  return Q.ninvoke(this.client, 'externalIp');
+}
+
+Client.prototype.close = function() {
+  this.client.close();
 }
 
 module.exports = {
-  // isMappingAvailable: isMappingAvailable,
-  clearMappings: clearMappings,
-  externalIp: externalIp,
-  mapPort: acquirePort,
-  unmapPort: unmapPort
-}
+  client: Client
+};
+
+// one offs - so you can do ports.mapPort() and not think about creating a new client and closing it after
+['mapPort', 'unmapPort', 'externalIp', 'clearMappings', 'isMappingAvailable'].forEach(function(method) {
+  module.exports[method] = function() {
+    var client = new Client();
+    var promise = client[method].apply(client, arguments);
+    promise.done(function() {
+      client.close();
+    });
+
+    return promise;
+  }
+});
