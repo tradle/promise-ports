@@ -1,5 +1,6 @@
 var Q = require('q');
 var natUpnp = require('nat-upnp');
+var defaults = require('defaults');
 
 function Client() {
   if (!(this instanceof Client)) return new Client();
@@ -7,28 +8,44 @@ function Client() {
   this.client = natUpnp.createClient();
 }
 
-Client.prototype.mapPort = function(pub, priv, hijack) {
+Client.prototype.mapPorts = function(/* mappings */) {
+  var self = this;
+
+  var tasks = [].map.call(arguments, function(mapping) {
+    return self.mapPort(mapping);
+  });
+
+  return Q.all(tasks);
+}
+
+Client.prototype.mapPort = function(options) {
+  if (arguments.length === 2) {
+    options = {
+      public: arguments[0],
+      private: arguments[1]
+    }
+  }
+
   var client = this.client;
   var prep;
-  if (hijack) 
-    prep = this.unmapPort(pub);
+  if (options.hijack) 
+    prep = this.unmapPort(options.public);
   else {
-    prep = this.isMappingAvailable(pub, priv)
+    prep = this.isMappingAvailable(options)
       .then(function(available) {
         if (!available) throw new Error('This mapping conflicts with an existing mapping');
       });
   }
 
   return prep.then(function() {
-    return Q.ninvoke(client, 'portMapping', {
-      public: pub,
-      private: priv,
-      ttl: 10
-    });
+    return Q.ninvoke(client, 'portMapping', defaults(options, {
+      ttl: 10,
+      protocol: 'TCP'
+    }));
   }) 
 }
 
-Client.prototype.isMappingAvailable = function(pub, priv) {
+Client.prototype.isMappingAvailable = function(options) {
   var client = this.client;
   var myIp;
   return Q.all([
@@ -40,7 +57,7 @@ Client.prototype.isMappingAvailable = function(pub, priv) {
 
     mappings.some(function(mapping) {
       if (mapping.private.host !== myIp &&
-          (mapping.public.port === pub || mapping.private.port === priv)) {
+          (mapping.public.port === options.public.port || mapping.private.port === options.private.port)) {
         conflict = mapping;
         return true;
       }
@@ -56,13 +73,14 @@ Client.prototype.clearMappings = function(options) {
   // var remoteHost;
   var ports = options.ports;
   var protocol = options.protocol;
+  if (protocol) protocol = protocol.toUpperCase();
 
   return Q.ninvoke(client, 'getMappings', options)
     .then(function(results) {
       var tasks = results.map(function(mapping) {
         // debugger;
         if (ports && ports.indexOf(mapping.public.port) === -1) return;
-        if (protocol && mapping.protocol.toLowerCase() !== protocol) return;
+        if (protocol && mapping.protocol.toUpperCase() !== protocol) return;
 
         var pub = mapping.public;
 
@@ -96,7 +114,7 @@ module.exports = {
 };
 
 // one offs - so you can do ports.mapPort() and not think about creating a new client and closing it after
-['mapPort', 'unmapPort', 'externalIp', 'clearMappings', 'isMappingAvailable'].forEach(function(method) {
+['mapPorts', 'mapPort', 'unmapPort', 'externalIp', 'clearMappings', 'isMappingAvailable'].forEach(function(method) {
   module.exports[method] = function() {
     var client = new Client();
     var promise = client[method].apply(client, arguments);
