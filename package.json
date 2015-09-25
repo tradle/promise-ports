@@ -1,6 +1,6 @@
 {
   "name": "promise-ports",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "promise based API to nat-upnp port mapping",
   "main": "index.js",
   "scripts": {
@@ -8,14 +8,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/tradle/promise-ports.git"
+    "url": "https://github.com/tradle/promise-ports"
   },
   "bugs": {
     "url": "https://github.com/tradle/promise-ports/issues"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/tradle/promise-ports"
   },
   "keywords": [
     "promise",
@@ -24,9 +20,6 @@
   ],
   "author": "Mark Vayngrib <mark.vayngrib@lablz.com> (http://github.com/mvayngrib)",
   "license": "MIT",
-  "bugs": {
-    "url": "https://github.com/tradle/promise-ports/issues"
-  },
   "homepage": "https://github.com/tradle/promise-ports",
   "dependencies": {
     "defaults": "^1.0.0",
